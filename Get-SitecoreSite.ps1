@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.2
+.VERSION 0.3
 
 .GUID 731386ca-0f32-4eea-ac72-0b67f84ede51
 
@@ -65,9 +65,10 @@ Param(
 begin {
 	$ProgressPreference = 'SilentlyContinue'
 	$ErrorActionPreference = 'Stop'
+	$PSScriptVersion = (Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty Version)
 	$PSScriptName = ($MyInvocation.MyCommand.Name.Replace(".ps1",""))
 	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
-	Write-Verbose "$PSScriptName $name $mode called by:$PSCallingScript"
+	Write-Verbose "$PSScriptRoot\$PSScriptName v$PSScriptVersion $name $mode called by:$PSCallingScript"
 }
 process {
 	Write-Verbose "$PSScriptName $name $mode start"
@@ -79,7 +80,7 @@ process {
 			if (!$name) {
 				[array]$sites = @(Get-ChildItem $wwwroot -Directory | ForEach-Object { $_.FullName})
 			} else {
-				if ((Test-Path $name)) {
+				if ((Test-Path "$name")) {
 					[array]$sites = @($name)
 				} else {
 					[array]$sites = @(Get-ChildItem $wwwroot -Directory -Filter $name | ForEach-Object { $_.FullName})
