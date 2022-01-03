@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.1
+.VERSION 0.2
 
 .GUID 731386ca-0f32-4eea-ac72-0b67f84ede51
 
@@ -79,7 +79,11 @@ process {
 			if (!$name) {
 				[array]$sites = @(Get-ChildItem $wwwroot -Directory | ForEach-Object { $_.FullName})
 			} else {
-				[array]$sites = @(Get-ChildItem $wwwroot -Directory -Filter $name | ForEach-Object { $_.FullName})
+				if ((Test-Path $name)) {
+					[array]$sites = @($name)
+				} else {
+					[array]$sites = @(Get-ChildItem $wwwroot -Directory -Filter $name | ForEach-Object { $_.FullName})
+				}
 			}
 		}
 		'iis' { 
