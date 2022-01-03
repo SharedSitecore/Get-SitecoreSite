@@ -35,7 +35,7 @@
 <# 
 
 .DESCRIPTION 
- Get-SitecoreSite (by name) default return list of all Sitecore sites
+ Get-SitecoreSite by name - default return list of all Sitecore sites
 
 .PARAMETER name
 Name of site - if empty returns list of all Sitecore sites within wwwroot
