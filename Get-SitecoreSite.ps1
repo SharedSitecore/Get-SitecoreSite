@@ -56,91 +56,89 @@ PS> .\Get-SitecoreSite 'sitename in iis'
 #####################################################
 # Get-SitecoreSite
 #####################################################
-function Get-SitecoreSite {
-	Param(
-		# Name of Sitecore Site in IIS
-		[Parameter(Mandatory = $false, position=0)] [string]$name,
-		[Parameter(Mandatory = $false, position=1)] [string]$wwwroot,
-		[Parameter(Mandatory = $false, position=2)] [string]$mode = 'registry'
-	)
-	begin {
-		$ProgressPreference = 'SilentlyContinue'
-		$ErrorActionPreference = 'Stop'
-		$PSScriptName = ($MyInvocation.MyCommand.Name.Replace(".ps1",""))
-		$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
-		Write-Verbose "$PSScriptName $name $mode called by:$PSCallingScript"
-	}
-	process {
-		Write-Verbose "$PSScriptName $name $mode start"
-		
-		switch ($mode) {
-			'registry' { 
-				if (!$wwwroot) {$wwwroot = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\InetStp -Name "PathWWWRoot").PathWWWRoot}
-				Write-Verbose "wwwroot:$wwwroot"
-				if (!$name) {
-					[array]$sites = @(Get-ChildItem $wwwroot -Directory | ForEach-Object { $_.FullName})
-				} else {
-					[array]$sites = @(Get-ChildItem $wwwroot -Directory -Filter $name | ForEach-Object { $_.FullName})
-				}
+Param(
+	# Name of Sitecore Site in IIS
+	[Parameter(Mandatory = $false, position=0)] [string]$name,
+	[Parameter(Mandatory = $false, position=1)] [string]$wwwroot,
+	[Parameter(Mandatory = $false, position=2)] [string]$mode = 'registry'
+)
+begin {
+	$ProgressPreference = 'SilentlyContinue'
+	$ErrorActionPreference = 'Stop'
+	$PSScriptName = ($MyInvocation.MyCommand.Name.Replace(".ps1",""))
+	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
+	Write-Verbose "$PSScriptName $name $mode called by:$PSCallingScript"
+}
+process {
+	Write-Verbose "$PSScriptName $name $mode start"
+	
+	switch ($mode) {
+		'registry' { 
+			if (!$wwwroot) {$wwwroot = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\InetStp -Name "PathWWWRoot").PathWWWRoot}
+			Write-Verbose "wwwroot:$wwwroot"
+			if (!$name) {
+				[array]$sites = @(Get-ChildItem $wwwroot -Directory | ForEach-Object { $_.FullName})
+			} else {
+				[array]$sites = @(Get-ChildItem $wwwroot -Directory -Filter $name | ForEach-Object { $_.FullName})
 			}
-			'iis' { 
-				try {
-					$command = Get-Command -Name Get-IISSite #'IISAdministration'
-				} catch {
-				}
-				if (!$command) {
-					Install-Module IISAdministration -Confirm:$False -Force -Scope AllUsers
-					Import-Module IISAdministration -Force -Scope Global
-				}
-		
-				if (!$name) {
-					$sites = Get-IISSite
-					#$sites = Get-website | select name,id,state,physicalpath
-				} else {
-					$sites = Get-IISSite $name
-					#$sites = Get-website $name | select name,id,state,physicalpath
-				}
-				#$path = $site.physicalpath
+		}
+		'iis' { 
+			try {
+				$command = Get-Command -Name Get-IISSite #'IISAdministration'
+			} catch {
 			}
-			'dll' { 
-				[Void][Reflection.Assembly]::LoadWithPartialName("Microsoft.Web.Administration")
-				#[Void][Reflection.Assembly]::UnsafeLoadFrom("Microsoft.Web.Administration")
-				
-				$server = New-Object Microsoft.Web.Administration.ServerManager
-				$sites = @()
-				foreach($site in $server.Sites) {
-					foreach ($app in $site.Applications) {
-						if ($site.Name -like $name) {
-							sites.Add($app.VirtualDirectories["/"].PhysicalPath)
-						}
+			if (!$command) {
+				Install-Module IISAdministration -Confirm:$False -Force -Scope AllUsers
+				Import-Module IISAdministration -Force -Scope Global
+			}
+	
+			if (!$name) {
+				$sites = Get-IISSite
+				#$sites = Get-website | select name,id,state,physicalpath
+			} else {
+				$sites = Get-IISSite $name
+				#$sites = Get-website $name | select name,id,state,physicalpath
+			}
+			#$path = $site.physicalpath
+		}
+		'dll' { 
+			[Void][Reflection.Assembly]::LoadWithPartialName("Microsoft.Web.Administration")
+			#[Void][Reflection.Assembly]::UnsafeLoadFrom("Microsoft.Web.Administration")
+			
+			$server = New-Object Microsoft.Web.Administration.ServerManager
+			$sites = @()
+			foreach($site in $server.Sites) {
+				foreach ($app in $site.Applications) {
+					if ($site.Name -like $name) {
+						sites.Add($app.VirtualDirectories["/"].PhysicalPath)
 					}
 				}
 			}
 		}
+	}
 
-		if (!$sites) {
-			throw "$PSScriptName ERROR no sites found in IIS named:$name"
-		}
-		Write-Verbose "sites:$($sites -join ',')"
-		#$results = @()
-		$results = [System.Collections.ArrayList]$results = @();
-		#$collection = {$results}.Invoke()
-		foreach($site in $sites)
-		{
-			if (!$site) {
-				Write-Verbose "$PSScriptName NO site/path!"
+	if (!$sites) {
+		throw "$PSScriptName ERROR no sites found in IIS named:$name"
+	}
+	Write-Verbose "sites:$($sites -join ',')"
+	#$results = @()
+	$results = [System.Collections.ArrayList]$results = @();
+	#$collection = {$results}.Invoke()
+	foreach($site in $sites)
+	{
+		if (!$site) {
+			Write-Verbose "$PSScriptName NO site/path!"
+		} else {
+			if (!(Test-Path ($site))) {
+				Write-Verbose "$PSScriptName ERROR site not found? $site"
 			} else {
-				if (!(Test-Path ($site))) {
-					Write-Verbose "$PSScriptName ERROR site not found? $site"
-				} else {
-					$sitecoreSite = Test-Path (Join-Path $site '/bin/Sitecore.Kernel.dll')
-					#Write-Host "$($site):$sitecoreSite"
-					if ($sitecoreSite) { $results.Add($site) | Out-Null } else {Write-Verbose "SKIP $site - Sitecore.Kernel.dll NOT FOUND"}
-				}
+				$sitecoreSite = Test-Path (Join-Path $site '/bin/Sitecore.Kernel.dll')
+				#Write-Host "$($site):$sitecoreSite"
+				if ($sitecoreSite) { $results.Add($site) | Out-Null } else {Write-Verbose "SKIP $site - Sitecore.Kernel.dll NOT FOUND"}
 			}
 		}
-		Write-Verbose "results:$($results -join ',')"
-		Write-Verbose "$PSScriptName $name end"
-		return @($results)
 	}
+	Write-Verbose "results:$($results -join ',')"
+	Write-Verbose "$PSScriptName $name end"
+	return @($results)
 }
